@@ -7,6 +7,7 @@ const ides = [
   { id: "cursor", label: "Cursor", file: ".cursor/mcp.json" },
   { id: "vscode", label: "VS Code", file: ".vscode/mcp.json" },
   { id: "windsurf", label: "Windsurf", file: ".windsurf/mcp.json" },
+  { id: "opencode", label: "OpenCode", file: "opencode.json" },
 ];
 
 const runners = [
@@ -16,6 +17,30 @@ const runners = [
 
 function buildConfig(runner: string, ideId: string): string {
   const isNpx = runner === "npx";
+
+  if (ideId === "opencode") {
+    return JSON.stringify(
+      {
+        $schema: "https://opencode.ai/config.json",
+        mcp: {
+          contextplus: {
+            type: "local",
+            command: isNpx ? ["npx", "-y", "contextplus"] : ["bunx", "contextplus"],
+            enabled: true,
+            environment: {
+              OLLAMA_EMBED_MODEL: "nomic-embed-text",
+              OLLAMA_CHAT_MODEL: "gemma2:27b",
+              OLLAMA_API_KEY: "YOUR_OLLAMA_API_KEY",
+              CONTEXTPLUS_EMBED_BATCH_SIZE: "8",
+              CONTEXTPLUS_EMBED_TRACKER: "true",
+            },
+          },
+        },
+      },
+      null,
+      2,
+    );
+  }
 
   if (ideId === "vscode") {
     return JSON.stringify(
