@@ -20,6 +20,7 @@ import { proposeCommit } from "./tools/propose-commit.js";
 import { listRestorePoints, restorePoint } from "./git/shadow.js";
 import { semanticNavigate } from "./tools/semantic-navigate.js";
 import { getFeatureHub } from "./tools/feature-hub.js";
+import { toolUpsertMemoryNode, toolCreateRelation, toolSearchMemoryGraph, toolPruneStaleLinks, toolAddInterlinkedContext, toolRetrieveWithTraversal } from "./tools/memory-tools.js";
 
 type AgentTarget = "claude" | "cursor" | "vscode" | "windsurf" | "opencode";
 
@@ -388,6 +389,117 @@ server.tool(
         featureName: feature_name,
         showOrphans: show_orphans,
       }),
+    }],
+  }),
+);
+
+server.tool(
+  "upsert_memory_node",
+  "Create or update a memory node in the linking graph. Nodes represent concepts, files, symbols, or notes with auto-generated embeddings. " +
+  "If a node with the same label and type exists, it updates content and increments access count. Returns the node ID for use in create_relation.",
+  {
+    type: z.enum(["concept", "file", "symbol", "note"]).describe("Node type: concept (abstract ideas), file (source files), symbol (functions/classes), note (free-form)."),
+    label: z.string().describe("Short identifier for the node. Used for deduplication with type."),
+    content: z.string().describe("Detailed content for the node. Used for embedding generation."),
+    metadata: z.record(z.string()).optional().describe("Optional key-value metadata pairs."),
+  },
+  async ({ type, label, content, metadata }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolUpsertMemoryNode({ rootDir: ROOT_DIR, type, label, content, metadata }),
+    }],
+  }),
+);
+
+server.tool(
+  "create_relation",
+  "Create a typed edge between two memory nodes. Supports relation types: relates_to, depends_on, implements, references, similar_to, contains. " +
+  "Edges have weights (0-1) that decay over time via e^(-λt). Duplicate edges update weight instead of creating new ones.",
+  {
+    source_id: z.string().describe("ID of the source memory node."),
+    target_id: z.string().describe("ID of the target memory node."),
+    relation: z.enum(["relates_to", "depends_on", "implements", "references", "similar_to", "contains"]).describe("Relationship type between nodes."),
+    weight: z.number().optional().describe("Edge weight 0-1. Higher = stronger relationship. Default: 1.0."),
+    metadata: z.record(z.string()).optional().describe("Optional key-value metadata for the edge."),
+  },
+  async ({ source_id, target_id, relation, weight, metadata }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolCreateRelation({ rootDir: ROOT_DIR, sourceId: source_id, targetId: target_id, relation, weight, metadata }),
+    }],
+  }),
+);
+
+server.tool(
+  "search_memory_graph",
+  "Search the memory graph by meaning with graph traversal. First finds direct matches via embedding similarity, " +
+  "then traverses 1st/2nd-degree neighbors to discover linked context. Returns both direct hits and graph-connected neighbors with relevance scores.",
+  {
+    query: z.string().describe("Natural language query to search the memory graph."),
+    max_depth: z.number().optional().describe("How many hops to traverse from direct matches. Default: 1."),
+    top_k: z.number().optional().describe("Number of direct matches to return. Default: 5."),
+    edge_filter: z.array(z.enum(["relates_to", "depends_on", "implements", "references", "similar_to", "contains"])).optional()
+      .describe("Only traverse edges of these types. Omit for all types."),
+  },
+  async ({ query, max_depth, top_k, edge_filter }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolSearchMemoryGraph({ rootDir: ROOT_DIR, query, maxDepth: max_depth, topK: top_k, edgeFilter: edge_filter }),
+    }],
+  }),
+);
+
+server.tool(
+  "prune_stale_links",
+  "Remove stale memory graph edges whose weight has decayed below threshold via e^(-λt) formula. " +
+  "Also removes orphan nodes with no edges, low access count, and >7 days since last access. Keeps the graph lean.",
+  {
+    threshold: z.number().optional().describe("Minimum decayed weight to keep an edge. Default: 0.15. Lower = keep more edges."),
+  },
+  async ({ threshold }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolPruneStaleLinks({ rootDir: ROOT_DIR, threshold }),
+    }],
+  }),
+);
+
+server.tool(
+  "add_interlinked_context",
+  "Bulk-add multiple memory nodes with automatic similarity linking. Computes embeddings for all items, " +
+  "then creates similarity edges between any pair (new-to-new and new-to-existing) with cosine similarity ≥ 0.72. " +
+  "Ideal for importing related concepts, files, or notes at once.",
+  {
+    items: z.array(z.object({
+      type: z.enum(["concept", "file", "symbol", "note"]),
+      label: z.string(),
+      content: z.string(),
+      metadata: z.record(z.string()).optional(),
+    })).describe("Array of nodes to add. Each needs type, label, and content."),
+    auto_link: z.boolean().optional().describe("Whether to auto-create similarity edges. Default: true."),
+  },
+  async ({ items, auto_link }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolAddInterlinkedContext({ rootDir: ROOT_DIR, items, autoLink: auto_link }),
+    }],
+  }),
+);
+
+server.tool(
+  "retrieve_with_traversal",
+  "Start from a specific memory node and traverse the graph outward. Returns the starting node plus all reachable neighbors " +
+  "within the depth limit, scored by edge weight decay and depth penalty. Use after search_memory_graph to explore a specific node's neighborhood.",
+  {
+    start_node_id: z.string().describe("ID of the memory node to start traversal from."),
+    max_depth: z.number().optional().describe("Maximum traversal depth from start node. Default: 2."),
+    edge_filter: z.array(z.enum(["relates_to", "depends_on", "implements", "references", "similar_to", "contains"])).optional()
+      .describe("Only traverse edges of these types. Omit for all."),
+  },
+  async ({ start_node_id, max_depth, edge_filter }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolRetrieveWithTraversal({ rootDir: ROOT_DIR, startNodeId: start_node_id, maxDepth: max_depth, edgeFilter: edge_filter }),
     }],
   }),
 );

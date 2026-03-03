@@ -33,8 +33,6 @@ function buildConfig(runner: string, ideId: string): string {
               OLLAMA_EMBED_MODEL: "nomic-embed-text",
               OLLAMA_CHAT_MODEL: "gemma2:27b",
               OLLAMA_API_KEY: "YOUR_OLLAMA_API_KEY",
-              CONTEXTPLUS_EMBED_BATCH_SIZE: "8",
-              CONTEXTPLUS_EMBED_TRACKER: "true",
             },
           },
         },

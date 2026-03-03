@@ -83,15 +83,33 @@ const functions = [
     desc: "Lightweight git worktree operations",
     color: "#999999",
   },
+  {
+    id: "memory-search",
+    label: "Memory Search",
+    desc: "RAG-powered search with graph traversal",
+    color: "#2a4a6a",
+  },
+  {
+    id: "memory-upsert",
+    label: "Memory Upsert",
+    desc: "Persist learned context as graph nodes",
+    color: "#3a5a7a",
+  },
+  {
+    id: "memory-traverse",
+    label: "Graph Traverse",
+    desc: "Walk linked nodes by relation and decay",
+    color: "#4a6a8a",
+  },
 ];
 
 function getCardConfig(width: number) {
-  if (width >= 1800) return { cardSize: 360, stackDx: -28, stackDy: 28 };
-  if (width >= 1400) return { cardSize: 300, stackDx: -24, stackDy: 24 };
-  if (width >= 1025) return { cardSize: 250, stackDx: -20, stackDy: 20 };
-  if (width >= 850) return { cardSize: 220, stackDx: -18, stackDy: 18 };
-  if (width >= 500) return { cardSize: 240, stackDx: -18, stackDy: 18 };
-  return { cardSize: 220, stackDx: -16, stackDy: 16 };
+  if (width >= 1800) return { cardSize: 360, stackDx: -24, stackDy: 24 };
+  if (width >= 1400) return { cardSize: 300, stackDx: -21, stackDy: 21 };
+  if (width >= 1025) return { cardSize: 250, stackDx: -18, stackDy: 18 };
+  if (width >= 850) return { cardSize: 220, stackDx: -16, stackDy: 16 };
+  if (width >= 500) return { cardSize: 240, stackDx: -16, stackDy: 16 };
+  return { cardSize: 220, stackDx: -14, stackDy: 14 };
 }
 
 export default function IsometricDiagram() {

@@ -158,7 +158,7 @@ export default async function Home() {
             }}
           >
             Context+ is an MCP server designed for developers who demand 99%
-            accuracy. By combining Tree-sitter AST parsing & Spectral
+            accuracy. By combining RAG, Treesitter AST & Spectral
             Clustering, Context+ turns a massive codebase into a searchable,
             hierarchical graph.
           </p>
@@ -221,7 +221,7 @@ export default async function Home() {
           Context+ guarantees minimal context bloat. It gives your agent deep
           semantic understanding of your codebase, from AST parsing and symbol
           navigation to blast radius analysis and commit validation. Nothing
-          misses the context.
+          misses the context, with RAG.
         </p>
         <table
           style={{

@@ -28,16 +28,20 @@ The MCP server is built with TypeScript and communicates over stdio using the Mo
 - \`static-analysis.ts\` - Native linter runner (tsc, eslint, py_compile, cargo check, go vet).
 - \`propose-commit.ts\` - Code gatekeeper validating headers, FEATURE tag, no inline comments, nesting, file length.
 - \`feature-hub.ts\` - Obsidian-style feature hub navigator with bundled skeleton views.
+- \`memory-tools.ts\` - Memory graph MCP wrappers (upsert, relate, search, prune, interlink, traverse).
+
+The memory graph is a **Retrieval-Augmented Generation (RAG)** system. Agents MUST use \`search_memory_graph\` at the start of every task to retrieve prior context, and persist learnings with \`upsert_memory_node\` and \`create_relation\` after completing work. This prevents redundant exploration and builds cumulative knowledge across sessions.
 
 **Core Layer** (continued):
 
 - \`hub.ts\` - Wikilink parser for \`[[path]]\` links, cross-link tags, hub discovery, orphan detection.
+- \`memory-graph.ts\` - In-memory property graph with JSON persistence, decay scoring, and auto-similarity edges.
 
 **Git Layer** (\`src/git/\`):
 
 - \`shadow.ts\` - Shadow restore point system for undo without touching git history.
 
-**Entry Point**: \`src/index.ts\` registers 11 MCP tools and starts the stdio transport. Accepts an optional CLI argument for the target project root directory (defaults to \`process.cwd()\`).
+**Entry Point**: \`src/index.ts\` registers 17 MCP tools and starts the stdio transport. Accepts an optional CLI argument for the target project root directory (defaults to \`process.cwd()\`).
 
 ## Environment Variables
 
@@ -138,6 +142,12 @@ Strict order within every file:
 | \`list_restore_points\`        | See undo history.                                                                  |
 | \`undo_change\`                | Revert a bad AI change without touching git.                                       |
 | \`get_feature_hub\`            | Browse feature graph hubs. Find orphaned files.                                    |
+| \`upsert_memory_node\`         | Create/update memory nodes (concept, file, symbol, note) with auto-embedding.      |
+| \`create_relation\`            | Create typed edges between memory nodes (depends_on, implements, etc).             |
+| \`search_memory_graph\`        | Semantic search + graph traversal across 1st/2nd-degree neighbors.                 |
+| \`prune_stale_links\`          | Remove decayed edges (e^(-λt)) and orphan nodes periodically.                      |
+| \`add_interlinked_context\`    | Bulk-add nodes with auto-similarity linking (cosine ≥ 0.72).                       |
+| \`retrieve_with_traversal\`    | Start from a node, walk outward, return scored neighbors by decay and depth.       |
 
 ## Anti-Patterns to Avoid
 

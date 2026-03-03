@@ -2,7 +2,7 @@
 
 Semantic Intelligence for Large-Scale Engineering.
 
-Context+ is an MCP server designed for developers who demand 99% accuracy. By combining Tree-sitter AST parsing, Spectral Clustering, and Obsidian-style linking, Context+ turns a massive codebase into a searchable, hierarchical feature graph.
+Context+ is an MCP server designed for developers who demand 99% accuracy. By combining RAG, Tree-sitter AST, Spectral Clustering, and Obsidian-style linking, Context+ turns a massive codebase into a searchable, hierarchical feature graph.
 
 https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 
@@ -38,6 +38,17 @@ https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 | --------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `list_restore_points` | List all shadow restore points created by `propose_commit`. Each captures file state before AI changes.    |
 | `undo_change`         | Restore files to their state before a specific AI change. Uses shadow restore points. Does not affect git. |
+
+### Memory & RAG
+
+| Tool                       | Description                                                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `upsert_memory_node`       | Create or update a memory node (concept, file, symbol, note) with auto-generated embeddings.                      |
+| `create_relation`          | Create typed edges between nodes (relates_to, depends_on, implements, references, similar_to, contains).          |
+| `search_memory_graph`      | Semantic search with graph traversal — finds direct matches then walks 1st/2nd-degree neighbors.                  |
+| `prune_stale_links`        | Remove decayed edges (e^(-λt) below threshold) and orphan nodes with low access counts.                           |
+| `add_interlinked_context`  | Bulk-add nodes with auto-similarity linking (cosine ≥ 0.72 creates edges automatically).                         |
+| `retrieve_with_traversal`  | Start from a node and walk outward — returns all reachable neighbors scored by decay and depth.                   |
 
 ## Setup
 
@@ -125,9 +136,9 @@ npm run build
 
 Three layers built with TypeScript over stdio using the Model Context Protocol SDK:
 
-**Core** (`src/core/`) - Multi-language AST parsing (tree-sitter, 43 extensions), gitignore-aware traversal, Ollama vector embeddings with disk cache, wikilink hub graph.
+**Core** (`src/core/`) - Multi-language AST parsing (tree-sitter, 43 extensions), gitignore-aware traversal, Ollama vector embeddings with disk cache, wikilink hub graph, in-memory property graph with decay scoring.
 
-**Tools** (`src/tools/`) - 11 MCP tools exposing structural, semantic, and operational capabilities.
+**Tools** (`src/tools/`) - 17 MCP tools exposing structural, semantic, operational, and memory graph capabilities.
 
 **Git** (`src/git/`) - Shadow restore point system for undo without touching git history.
 

@@ -314,6 +314,63 @@ export default function ToolDiagram() {
           </div>
         ))}
       </div>
+      <div style={{ marginTop: 16, position: "relative" }}>
+        <div
+          style={{
+            height: 100,
+            borderRadius: 20,
+            overflow: "hidden",
+            position: "relative",
+            background: "var(--panel-bg)",
+          }}
+        >
+          <svg
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <pattern
+                id={`diag-rag-bg-${isDark ? "dark" : "light"}`}
+                width="6"
+                height="6"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <line
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="6"
+                  stroke={isDark ? "#000000" : "#000000"}
+                  strokeWidth="1"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill={`url(#diag-rag-bg-${isDark ? "dark" : "light"})`} />
+          </svg>
+          <span
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              fontSize: 13,
+              fontWeight: 500,
+              color: isDark ? "#ffffff" : "#000000",
+              fontFamily: "var(--font-geist-pixel-square)",
+              letterSpacing: "-0.02em",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              background: "var(--panel-bg)",
+              borderRadius: 9999,
+              padding: "2px 8px",
+              border: "none",
+            }}
+          >
+            RAG Functions
+          </span>
+        </div>
+      </div>
     </>
   );
 }
