@@ -4,8 +4,9 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 import { z } from "zod";
 import { startEmbeddingTracker } from "./core/embedding-tracker.js";
 import { isBrokenPipeError, runCleanup } from "./core/process-lifecycle.js";
@@ -36,6 +37,8 @@ const passthroughArgs = process.argv.slice(2);
 const ROOT_DIR = passthroughArgs[0] && !SUB_COMMANDS.includes(passthroughArgs[0])
   ? resolve(passthroughArgs[0])
   : process.cwd();
+const INSTRUCTIONS_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../INSTRUCTIONS.md");
+const INSTRUCTIONS_RESOURCE_URI = "contextplus://instructions";
 
 function parseAgentTarget(input?: string): AgentTarget {
   const normalized = (input ?? "claude").toLowerCase();
@@ -132,6 +135,18 @@ const server = new McpServer({
 }, {
   capabilities: { logging: {} },
 });
+
+server.resource(
+  "contextplus_instructions",
+  INSTRUCTIONS_RESOURCE_URI,
+  async (uri) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "text/markdown",
+      text: await readFile(INSTRUCTIONS_PATH, "utf8"),
+    }],
+  }),
+);
 
 server.tool(
   "get_context_tree",
