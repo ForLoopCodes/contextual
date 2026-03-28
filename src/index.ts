@@ -549,6 +549,7 @@ async function main() {
   const idleMonitor = createIdleMonitor({
     timeoutMs: getIdleShutdownMs(process.env.CONTEXTPLUS_IDLE_TIMEOUT_MS),
     onIdle: () => requestShutdown("idle-timeout", 0),
+    isTransportAlive: () => process.stdin.readable && !process.stdin.destroyed,
   });
 
   noteServerActivity = idleMonitor.touch;

@@ -27,6 +27,7 @@ export interface IdleMonitor {
 export interface IdleMonitorOptions {
   timeoutMs: number;
   onIdle: () => void;
+  isTransportAlive?: () => boolean;
 }
 
 export interface ParentMonitorOptions {
@@ -89,6 +90,10 @@ export function createIdleMonitor(options: IdleMonitorOptions): IdleMonitor {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
+      if (options.isTransportAlive && options.isTransportAlive()) {
+        schedule();
+        return;
+      }
       options.onIdle();
     }, options.timeoutMs);
     unrefHandle(timer);
