@@ -50,6 +50,8 @@ https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 | `add_interlinked_context` | Bulk-add nodes with auto-similarity linking (cosine ≥ 0.72 creates edges automatically).                 |
 | `retrieve_with_traversal` | Start from a node and walk outward — returns all reachable neighbors scored by decay and depth.          |
 
+> **Complementary server:** [pmll-memory-mcp](https://www.npmjs.com/package/pmll-memory-mcp) (`npx pmll-memory-mcp`) is a separate MCP server by [@drQedwards](https://github.com/drQedwards) that adapts Context+'s long-term memory graph and adds short-term KV context memory, Q-promise deduplication, and a solution engine on top. See [drQedwards/PPM](https://github.com/drQedwards/PPM) for details.
+
 ## Setup
 
 ### Quick Start (npx / bunx)
