@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/forloopcodes-contextplus-badge.png)](https://mseep.ai/app/forloopcodes-contextplus)
+
 # Context+
 
 Semantic Intelligence for Large-Scale Engineering.
