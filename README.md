@@ -4,8 +4,6 @@ Semantic Intelligence for Large-Scale Engineering.
 
 Context+ is an MCP server designed for developers who demand 99% accuracy. By combining RAG, Tree-sitter AST, Spectral Clustering, and Obsidian-style linking, Context+ turns a massive codebase into a searchable, hierarchical feature graph.
 
-**While you're here, check out my other project Airena. Curate a team of AI agents and face head-to-head with other orchestrators. First place on the leaderboard gets a $1600 prize!**
-
 https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 
 ## Tools
