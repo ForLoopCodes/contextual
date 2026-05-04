@@ -1,7 +1,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { walkDirectory, groupByDirectory } from "../../build/core/walker.js";
-import { writeFile, mkdir, rm } from "fs/promises";
+import { writeFile, mkdir, rm, symlink } from "fs/promises";
 import { join } from "path";
 
 const FIXTURE_DIR = join(process.cwd(), "test", "_walk_fixtures");
@@ -93,6 +93,51 @@ describe("walker", () => {
         targetPath: "nonexistent",
       });
       assert.equal(entries.length, 0);
+    });
+
+    it("rejects targetPath traversal outside root", async () => {
+      await assert.rejects(
+        walkDirectory({
+          rootDir: FIXTURE_DIR,
+          targetPath: "..",
+        }),
+        /Path traversal denied/,
+      );
+    });
+
+    it("rejects targetPath traversal to sibling paths with shared prefixes", async () => {
+      const siblingDir = `${FIXTURE_DIR}-sibling`;
+      await mkdir(siblingDir, { recursive: true });
+      try {
+        await assert.rejects(
+          walkDirectory({
+            rootDir: FIXTURE_DIR,
+            targetPath: "../_walk_fixtures-sibling",
+          }),
+          /Path traversal denied/,
+        );
+      } finally {
+        await rm(siblingDir, { recursive: true, force: true });
+      }
+    });
+
+    it("rejects symlink escapes passed as targetPath", async () => {
+      const outsideDir = `${FIXTURE_DIR}-outside`;
+      const linkPath = join(FIXTURE_DIR, "outside-link");
+      await mkdir(outsideDir, { recursive: true });
+      try {
+        await symlink(outsideDir, linkPath, "dir");
+        await assert.rejects(
+          walkDirectory({
+            rootDir: FIXTURE_DIR,
+            targetPath: "outside-link",
+          }),
+          /Path traversal denied/,
+        );
+      } finally {
+        await rm(linkPath, { recursive: true, force: true });
+        await rm(outsideDir, { recursive: true, force: true });
+      }
     });
 
     it("includes depth info", async () => {

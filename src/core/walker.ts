@@ -1,8 +1,8 @@
 // Gitignore-aware recursive directory walker with depth control
 // Returns filtered file paths respecting project ignore patterns
 
-import { readdir, readFile, stat } from "fs/promises";
-import { join, relative, resolve } from "path";
+import { readdir, readFile, realpath, stat } from "fs/promises";
+import { isAbsolute, join, relative, resolve } from "path";
 import ignore, { type Ignore } from "ignore";
 
 export interface WalkOptions {
@@ -37,6 +37,11 @@ const ALWAYS_IGNORE = new Set([
   ".turbo",
   ".parcel-cache",
 ]);
+
+function isWithinRoot(rootDir: string, targetPath: string): boolean {
+  const relPath = relative(rootDir, targetPath);
+  return relPath === "" || (!relPath.startsWith("..") && !isAbsolute(relPath));
+}
 
 async function loadIgnoreRules(rootDir: string): Promise<Ignore> {
   const ig = ignore();
@@ -76,16 +81,23 @@ async function walkRecursive(
 export async function walkDirectory(options: WalkOptions): Promise<FileEntry[]> {
   const rootDir = resolve(options.rootDir);
   const startDir = options.targetPath ? resolve(rootDir, options.targetPath) : rootDir;
-  const ig = await loadIgnoreRules(rootDir);
   const results: FileEntry[] = [];
 
+  let rootRealPath: string;
+  let startRealPath: string;
   try {
-    await stat(startDir);
+    [rootRealPath, startRealPath] = await Promise.all([realpath(rootDir), realpath(startDir)]);
+    await stat(startRealPath);
   } catch {
     return results;
   }
 
-  await walkRecursive(startDir, rootDir, ig, 0, options.depthLimit ?? 0, results);
+  if (!isWithinRoot(rootRealPath, startRealPath)) {
+    throw new Error(`Path traversal denied: "${options.targetPath}" resolves outside root directory`);
+  }
+
+  const ig = await loadIgnoreRules(rootRealPath);
+  await walkRecursive(startRealPath, rootRealPath, ig, 0, options.depthLimit ?? 0, results);
   return results;
 }
 
