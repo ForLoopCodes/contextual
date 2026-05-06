@@ -97,7 +97,13 @@ function validateAbstraction(lines: string[]): ValidationError[] {
 }
 
 export async function proposeCommit(options: ProposeCommitOptions): Promise<string> {
-  const fullPath = resolve(options.rootDir, options.filePath);
+  const rootDir = resolve(options.rootDir);
+  const fullPath = resolve(rootDir, options.filePath);
+
+  if (fullPath !== rootDir && !fullPath.startsWith(rootDir + "/")) {
+    throw new Error(`Path traversal detected: resolved path escapes project root`);
+  }
+
   const ext = extname(fullPath);
   const lines = options.newContent.split("\n");
   const allErrors: ValidationError[] = [];
