@@ -1,7 +1,7 @@
 // Semantic project navigator using spectral clustering and provider-agnostic labeling
 // Browse codebase by meaning: embeds files, clusters vectors, generates labels
 
-import { walkDirectory } from "../core/walker.js";
+import { walkRoots } from "../core/walker.js";
 import { analyzeFile, flattenSymbols, isSupportedFile } from "../core/parser.js";
 import { fetchEmbedding } from "../core/embeddings.js";
 import { readFile } from "fs/promises";
@@ -253,7 +253,7 @@ export async function semanticNavigate(options: SemanticNavigateOptions): Promis
   const maxClusters = options.maxClusters ?? 20;
   const maxDepth = options.maxDepth ?? 3;
 
-  const entries = await walkDirectory({ rootDir: options.rootDir, depthLimit: 0 });
+  const entries = await walkRoots({ rootDir: options.rootDir, depthLimit: 0 });
   const fileEntries = entries.filter((e) => !e.isDirectory && isNavigableSourceCandidate(e.path));
 
   if (fileEntries.length === 0) return "No supported source files found in the project.";

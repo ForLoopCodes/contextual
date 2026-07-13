@@ -5,7 +5,7 @@ import { resolve, extname } from "path";
 import { readFile, stat } from "fs/promises";
 import { parseHubFile, discoverHubs, findOrphanedFiles, type HubInfo } from "../core/hub.js";
 import { getFileSkeleton } from "./file-skeleton.js";
-import { walkDirectory } from "../core/walker.js";
+import { walkRoots } from "../core/walker.js";
 
 export interface FeatureHubOptions {
   rootDir: string;
@@ -53,7 +53,7 @@ export async function getFeatureHub(options: FeatureHubOptions): Promise<string>
   }
 
   if (showOrphans) {
-    const entries = await walkDirectory({ rootDir, depthLimit: 10 });
+    const entries = await walkRoots({ rootDir, depthLimit: 10 });
     const filePaths = entries.filter((e) => !e.isDirectory).map((e) => e.relativePath);
     const orphans = await findOrphanedFiles(rootDir, filePaths);
     if (orphans.length === 0) return "No orphaned files. All source files are linked to a hub.";

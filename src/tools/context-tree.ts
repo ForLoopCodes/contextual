@@ -1,7 +1,7 @@
 // Structural tree generator with file headers, symbols, and depth control
 // Dynamic token-aware pruning: Level 0 (files only) to Level 2 (deep context)
 
-import { walkDirectory, type FileEntry } from "../core/walker.js";
+import { walkRoots, type FileEntry } from "../core/walker.js";
 import { analyzeFile, formatSymbol, isSupportedFile } from "../core/parser.js";
 
 export interface ContextTreeOptions {
@@ -105,7 +105,7 @@ function pruneHeaders(node: TreeNode): void {
 }
 
 export async function getContextTree(options: ContextTreeOptions): Promise<string> {
-  const entries = await walkDirectory({
+  const entries = await walkRoots({
     rootDir: options.rootDir,
     targetPath: options.targetPath,
     depthLimit: options.depthLimit,
