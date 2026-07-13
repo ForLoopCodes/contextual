@@ -6,6 +6,16 @@ import { join } from "path";
 
 const FIXTURE_DIR = join(process.cwd(), "test", "_walk_fixtures");
 
+async function trySymlink(symlink, target, path) {
+  try {
+    await symlink(target, path);
+    return true;
+  } catch (error) {
+    if (error.code === "EPERM" || error.code === "EACCES") return false;
+    throw error;
+  }
+}
+
 describe("walker", () => {
   before(async () => {
     await rm(FIXTURE_DIR, { recursive: true, force: true });
@@ -345,7 +355,7 @@ describe("walker", () => {
       );
     });
 
-    it("rejects symlinked extraRoots that point outside the workspace", async () => {
+    it("rejects symlinked extraRoots that point outside the workspace", async (t) => {
       const { walkRoots } = await import("../../build/core/walker.js");
       const { symlink, mkdir, rm, writeFile } = await import("fs/promises");
       const SYM = join(FIXTURE_DIR, "_sym");
@@ -356,7 +366,9 @@ describe("walker", () => {
       await mkdir(EXTERNAL, { recursive: true });
       await writeFile(join(EXTERNAL, "secret.txt"), "secret");
       // Place a symlink INSIDE the workspace pointing OUTSIDE.
-      await symlink(EXTERNAL, join(SYM, "link"));
+      if (!(await trySymlink(symlink, EXTERNAL, join(SYM, "link")))) {
+        return t.skip("symlink creation not permitted in this environment");
+      }
 
       await assert.rejects(
         () => walkRoots({ rootDir: SYM, extraRoots: ["link"] }),
@@ -367,7 +379,7 @@ describe("walker", () => {
       await rm(EXTERNAL, { recursive: true, force: true });
     });
 
-    it("follows symlinked extraRoots that point inside the workspace", async () => {
+    it("follows symlinked extraRoots that point inside the workspace", async (t) => {
       const { walkRoots } = await import("../../build/core/walker.js");
       const { symlink, mkdir, rm, writeFile } = await import("fs/promises");
       const SYM = join(FIXTURE_DIR, "_sym_inside");
@@ -375,7 +387,9 @@ describe("walker", () => {
       await mkdir(join(SYM, "real"), { recursive: true });
       await writeFile(join(SYM, "real", "ok.txt"), "ok");
       await writeFile(join(SYM, ".gitignore"), "linked/\n");  // exclude symlink-named path from primary walk so the only way to see ok.txt is via the extraRoot
-      await symlink(join(SYM, "real"), join(SYM, "linked"));
+      if (!(await trySymlink(symlink, join(SYM, "real"), join(SYM, "linked")))) {
+        return t.skip("symlink creation not permitted in this environment");
+      }
 
       const entries = await walkRoots({ rootDir: SYM, extraRoots: ["linked"] });
       const paths = entries.map((e) => e.relativePath);
