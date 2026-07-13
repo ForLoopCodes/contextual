@@ -10,7 +10,9 @@ import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { createEmbeddingTrackerController } from "./core/embedding-tracker.js";
+import { parseExtraRoots } from "./core/extra-roots.js";
 import { createIdleMonitor, getIdleShutdownMs, getParentPollMs, isBrokenPipeError, runCleanup, startParentMonitor } from "./core/process-lifecycle.js";
+import { setExtraRoots } from "./core/walker.js";
 import { getContextTree } from "./tools/context-tree.js";
 import { getFileSkeleton } from "./tools/file-skeleton.js";
 import { ensureMcpDataDir, cancelAllEmbeddings } from "./core/embeddings.js";
@@ -39,6 +41,16 @@ const passthroughArgs = process.argv.slice(2);
 const ROOT_DIR = passthroughArgs[0] && !SUB_COMMANDS.includes(passthroughArgs[0])
   ? resolve(passthroughArgs[0])
   : process.cwd();
+
+const extraRootsResult = parseExtraRoots({
+  argv: passthroughArgs,
+  env: process.env,
+  rootDir: ROOT_DIR,
+});
+for (const warning of extraRootsResult.warnings) {
+  process.stderr.write(`${warning}\n`);
+}
+setExtraRoots(extraRootsResult.accepted);
 const INSTRUCTIONS_SOURCE_URL = "https://contextplus.vercel.app/api/instructions";
 const INSTRUCTIONS_RESOURCE_URI = "contextplus://instructions";
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");

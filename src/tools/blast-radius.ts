@@ -1,7 +1,7 @@
 // Dependency graph analyzer to trace symbol usage across the codebase
 // Finds every file and line where a function, class, or variable is referenced
 
-import { walkDirectory } from "../core/walker.js";
+import { walkRoots } from "../core/walker.js";
 import { isSupportedFile } from "../core/parser.js";
 import { readFile } from "fs/promises";
 
@@ -18,7 +18,7 @@ interface SymbolUsage {
 }
 
 export async function getBlastRadius(options: BlastRadiusOptions): Promise<string> {
-  const entries = await walkDirectory({ rootDir: options.rootDir, depthLimit: 0 });
+  const entries = await walkRoots({ rootDir: options.rootDir, depthLimit: 0 });
   const files = entries.filter((e) => !e.isDirectory && isSupportedFile(e.path));
   const usages: SymbolUsage[] = [];
   const symbolPattern = new RegExp(`\\b${escapeRegex(options.symbolName)}\\b`, "g");

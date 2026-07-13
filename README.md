@@ -4,8 +4,6 @@ Semantic Intelligence for Large-Scale Engineering.
 
 Context+ is an MCP server designed for developers who demand 99% accuracy. By combining RAG, Tree-sitter AST, Spectral Clustering, and Obsidian-style linking, Context+ turns a massive codebase into a searchable, hierarchical feature graph.
 
-**While you're here, check out my other project Airena. Curate a team of AI agents and face head-to-head with other orchestrators. First place on the leaderboard gets a $1600 prize!**
-
 https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 
 ## Tools
@@ -128,6 +126,54 @@ Config file locations:
 - `init [target]` - Generate MCP configuration (targets: `claude`, `cursor`, `vscode`, `windsurf`, `opencode`).
 - `skeleton [path]` or `tree [path]` - **(New)** View the structural tree of a project with file headers and symbol definitions directly in your terminal.
 - `[path]` - Start the MCP server (stdio) for the specified path (defaults to current directory).
+
+### Including paths excluded by the workspace `.gitignore`
+
+If your workspace `.gitignore` excludes a sub-directory that you still want
+indexed (common in monorepos where sub-projects under `repos/`, `packages/`,
+or `vendor/` are gitignored at the top level), use `--include` or
+`CONTEXTPLUS_EXTRA_ROOTS` to add the paths back.
+
+**CLI form** (repeatable):
+
+```bash
+bunx contextplus /path/to/workspace \
+  --include repos/lacuna \
+  --include repos/graphrag-core
+```
+
+**Environment variable** (fallback when no `--include` flag is set; uses the
+system path separator — `:` on Unix, `;` on Windows):
+
+```bash
+CONTEXTPLUS_EXTRA_ROOTS=repos/lacuna:repos/graphrag-core \
+  bunx contextplus /path/to/workspace
+```
+
+**In `.mcp.json`** the env form is usually more ergonomic:
+
+```json
+{
+  "mcpServers": {
+    "contextplus": {
+      "command": "bunx",
+      "args": ["contextplus", "/path/to/workspace"],
+      "env": {
+        "CONTEXTPLUS_EXTRA_ROOTS": "repos/lacuna:repos/graphrag-core"
+      }
+    }
+  }
+}
+```
+
+Each path listed is walked **independently** of the workspace root, with a
+fresh ignore scope. Each path's own `.gitignore` is respected. Paths are
+validated at startup; invalid entries (non-existent, not a directory,
+outside the workspace) emit a stderr warning and are skipped.
+
+Nested `.gitignore` files inside the workspace and inside each extra root
+are loaded and merged with inherited rules, matching `git` and `ripgrep`
+behavior.
 
 ### From Source
 

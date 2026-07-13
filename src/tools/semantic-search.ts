@@ -1,7 +1,7 @@
 // Ollama-powered semantic search over file headers and symbol names
 // Uses vector embeddings with cosine similarity for concept matching
 
-import { walkDirectory } from "../core/walker.js";
+import { walkRoots } from "../core/walker.js";
 import { analyzeFile, flattenSymbols, isSupportedFile } from "../core/parser.js";
 import {
   fetchEmbedding,
@@ -136,7 +136,7 @@ async function buildIndex(rootDir: string): Promise<SearchIndex> {
     return cachedIndex;
   }
 
-  const entries = await walkDirectory({ rootDir, depthLimit: 0 });
+  const entries = await walkRoots({ rootDir, depthLimit: 0 });
   const files = entries.filter((e) => !e.isDirectory);
 
   const docs: SearchDocument[] = [];

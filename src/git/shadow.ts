@@ -3,7 +3,7 @@
 
 import { simpleGit, type SimpleGit } from "simple-git";
 import { readFile, writeFile, mkdir } from "fs/promises";
-import { join, dirname, resolve } from "path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "path";
 
 const SHADOW_BRANCH = "mcp-shadow-history";
 const DATA_DIR = ".mcp_data";
@@ -16,9 +16,10 @@ export interface RestorePoint {
 }
 
 function assertWithinRoot(rootDir: string, filePath: string): string {
-  const resolved = resolve(rootDir, filePath);
-  const normalizedRoot = resolve(rootDir) + "/";
-  if (!resolved.startsWith(normalizedRoot) && resolved !== resolve(rootDir)) {
+  const root = resolve(rootDir);
+  const resolved = resolve(root, filePath);
+  const rel = relative(root, resolved);
+  if (rel === ".." || rel.startsWith(".." + sep) || isAbsolute(rel)) {
     throw new Error(`Path traversal denied: "${filePath}" resolves outside root directory`);
   }
   return resolved;

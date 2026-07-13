@@ -2,7 +2,7 @@
 // FEATURE: Symbol intelligence via semantic search over definitions and usages
 
 import { readFile } from "fs/promises";
-import { walkDirectory } from "../core/walker.js";
+import { walkRoots } from "../core/walker.js";
 import { analyzeFile, flattenSymbols, isSupportedFile } from "../core/parser.js";
 import {
   fetchEmbedding,
@@ -182,7 +182,7 @@ async function buildIdentifierIndex(rootDir: string): Promise<IdentifierIndex> {
     return cachedIndex;
   }
 
-  const entries = await walkDirectory({ rootDir, depthLimit: 0 });
+  const entries = await walkRoots({ rootDir, depthLimit: 0 });
   const files = entries.filter((entry) => !entry.isDirectory && isSupportedFile(entry.path));
   const docs: IdentifierDoc[] = [];
   const fileLines = new Map<string, string[]>();
