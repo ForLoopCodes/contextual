@@ -25,6 +25,7 @@ import { listRestorePoints, restorePoint } from "./git/shadow.js";
 import { semanticNavigate } from "./tools/semantic-navigate.js";
 import { getFeatureHub } from "./tools/feature-hub.js";
 import { toolUpsertMemoryNode, toolCreateRelation, toolSearchMemoryGraph, toolPruneStaleLinks, toolAddInterlinkedContext, toolRetrieveWithTraversal } from "./tools/memory-tools.js";
+import { webSearch } from "./tools/web-search.js";
 
 type AgentTarget = "claude" | "cursor" | "vscode" | "windsurf" | "opencode";
 
@@ -297,6 +298,35 @@ server.tool(
       }),
     }],
   }), { useEmbeddingTracker: true }),
+);
+
+server.tool(
+  "web_search",
+  "Search the web for external information using You.com Search API. Complements local semantic search with current web knowledge. " +
+  "Supports both authenticated (YDC_API_KEY) and keyless operation (100 free searches/day).",
+  {
+    query: z.string().describe("The search query to find relevant web information."),
+    count: z.number().optional().describe("Number of results to return (1-20). Default: 10."),
+    offset: z.number().optional().describe("Number of results to skip (for pagination). Default: 0."),
+    country: z.string().optional().describe("Country code for localized results (e.g., 'us', 'uk'). Default: 'us'."),
+    domains: z.array(z.string()).optional().describe("Specific domains to search within (e.g., ['github.com', 'stackoverflow.com'])."),
+    freshness: z.string().optional().describe("Result freshness filter ('day', 'week', 'month', 'year')."),
+    search_lang: z.string().optional().describe("Search language (e.g., 'en', 'es', 'fr'). Default: 'en'."),
+  },
+  withRequestActivity(async ({ query, count, offset, country, domains, freshness, search_lang }) => ({
+    content: [{
+      type: "text" as const,
+      text: await webSearch({
+        query,
+        count,
+        offset,
+        country,
+        domains,
+        freshness,
+        search_lang,
+      }),
+    }],
+  })),
 );
 
 server.tool(
