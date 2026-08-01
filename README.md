@@ -17,6 +17,7 @@ https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 | `semantic_code_search`       | Search by meaning, not exact text. Uses embeddings over file headers/symbols and returns matched symbol definition lines.                                        |
 | `semantic_identifier_search` | Identifier-level semantic retrieval for functions/classes/variables with ranked call sites and line numbers.                                                     |
 | `semantic_navigate`          | Browse codebase by meaning using spectral clustering. Groups semantically related files into labeled clusters.                                                   |
+| `web_search`                 | Search the web for external information using You.com Search API. Complements local semantic search with current web knowledge.                                  |
 
 ### Analysis
 
@@ -268,6 +269,47 @@ Any endpoint implementing the [OpenAI Embeddings API](https://platform.openai.co
 
 ## Architecture
 
+### Web Search Integration
+
+The `web_search` tool provides external web knowledge to complement Context+'s local semantic search capabilities. It uses the You.com Search API to find current information on the web.
+
+**Setup:**
+- **Optional:** Set `YDC_API_KEY` environment variable for authenticated access
+- **Keyless mode:** Works without API key (100 free searches per day per IP)
+- **Error handling:** Graceful fallbacks with actionable error messages
+
+**Usage examples:**
+
+```javascript
+// Search for current information about a technology
+await mcpClient.callTool('web_search', {
+  query: 'TypeScript 5.0 new features',
+  count: 10
+});
+
+// Search specific domains
+await mcpClient.callTool('web_search', {
+  query: 'React hooks patterns',
+  domains: ['react.dev', 'github.com'],
+  count: 5
+});
+
+// Get fresh results
+await mcpClient.callTool('web_search', {
+  query: 'JavaScript security vulnerabilities',
+  freshness: 'week',
+  count: 8
+});
+
+// Combine with local search
+const localResults = await mcpClient.callTool('semantic_code_search', {
+  query: 'authentication implementation'
+});
+const webResults = await mcpClient.callTool('web_search', {
+  query: 'authentication best practices 2024'
+});
+```
+
 Three layers built with TypeScript over stdio using the Model Context Protocol SDK:
 
 **Core** (`src/core/`) - Multi-language AST parsing (tree-sitter, 43 extensions), gitignore-aware traversal, Ollama vector embeddings with disk cache, wikilink hub graph, in-memory property graph with decay scoring.
@@ -280,10 +322,7 @@ Three layers built with TypeScript over stdio using the Model Context Protocol S
 
 ## Config
 
-| Variable                                | Type                      | Default                                | Description                                                   |
-| --------------------------------------- | ------------------------- | -------------------------------------- | ------------------------------------------------------------- |
-| `CONTEXTPLUS_EMBED_PROVIDER`            | string                    | `ollama`                               | Embedding backend: `ollama` or `openai`                      |
-| `OLLAMA_EMBED_MODEL`                    | string                    | `nomic-embed-text`                     | Ollama embedding model                                        |
+| Variable                                | Type                      | Default                                | Description                                                   |\n| --------------------------------------- | ------------------------- | -------------------------------------- | ------------------------------------------------------------- |\n| `CONTEXTPLUS_EMBED_PROVIDER`            | string                    | `ollama`                               | Embedding backend: `ollama` or `openai`                      |\n| `YDC_API_KEY`                           | string                    | -                                      | You.com API key for web search (optional, falls back to keyless) |\n| `OLLAMA_EMBED_MODEL`                    | string                    | `nomic-embed-text`                     | Ollama embedding model                                        |
 | `OLLAMA_API_KEY`                        | string                    | -                                      | Ollama Cloud API key                                          |
 | `OLLAMA_CHAT_MODEL`                     | string                    | `llama3.2`                             | Ollama chat model for cluster labeling                        |
 | `CONTEXTPLUS_OPENAI_API_KEY`            | string                    | -                                      | API key for OpenAI-compatible provider (alias: `OPENAI_API_KEY`) |
