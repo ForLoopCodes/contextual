@@ -43,6 +43,10 @@ https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 
 | Tool                      | Description                                                                                              |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `init` / `peek` / `set` / `resolve` / `flush` | Native short-term KV silo (`src/core/short-term-kv.ts`) with `silo_size` LRU eviction. |
+| `resolve_context`         | Dual-layer lookup: KV first, then memory graph via `mergeRankHits` unified ranking.                      |
+| `promote_to_long_term`    | Promote a KV entry into the persistent memory graph.                                                     |
+| `memory_status`           | Unified short-term + long-term status.                                                                   |
 | `upsert_memory_node`      | Create or update a memory node (concept, file, symbol, note) with auto-generated embeddings.             |
 | `create_relation`         | Create typed edges between nodes (relates_to, depends_on, implements, references, similar_to, contains). |
 | `search_memory_graph`     | Semantic search with graph traversal — finds direct matches then walks 1st/2nd-degree neighbors.         |
@@ -50,11 +54,11 @@ https://github.com/user-attachments/assets/a97a451f-c9b4-468d-b036-15b65fc13e79
 | `add_interlinked_context` | Bulk-add nodes with auto-similarity linking (cosine ≥ 0.72 creates edges automatically).                 |
 | `retrieve_with_traversal` | Start from a node and walk outward — returns all reachable neighbors scored by decay and depth.          |
 
-> **Complementary server:** [pmll-memory-mcp](https://www.npmjs.com/package/pmll-memory-mcp?utm_source=contextplus&utm_medium=readme&utm_campaign=complementary) (`npx pmll-memory-mcp`) is a separate MCP server by [@drQedwards](https://github.com/drQedwards) that adapts Context+'s long-term memory graph and adds short-term KV context memory, Q-promise deduplication, and a solution engine on top. See [drQedwards/PPM](https://github.com/drQedwards/PPM?utm_source=contextplus&utm_medium=readme&utm_campaign=complementary) and [drQedwards/pmll](https://github.com/drQedwards/pmll) for details.
+> **Core upgrade:** short-term KV + solution engine are now native (`short-term-kv.ts`, `solution-engine.ts`, `memory-tools.ts`). `mergeRankHits` supports unified ranking for dual-layer `resolve_context` (direct+neighbor by relevance) — separate from the pmll retrieval-stub harness ranking fix.
 >
-> **P0 durability (Python package is the source of truth):** SQLite-backed graph, stable hashing embeddings, silo LRU eviction, and `init` reset. Implementation: [`pmll/mcp/pmll_memory_mcp/`](https://github.com/drQedwards/pmll/tree/main/mcp/pmll_memory_mcp) · mirror [`PPM/mcp/pmll_memory_mcp/`](https://github.com/drQedwards/PPM/tree/main/mcp/pmll_memory_mcp).
+> **Token burn (PPM three-way, existing numbers):** [three-way-speed-comparison.md](https://github.com/drQedwards/PPM/blob/main/mcp/benchmarks/three-way-speed-comparison.md) — TS avg test exec baseline **~302ms**, Context+-only **~63ms**, peek-only **~26ms**, combined **~36ms**; peek hits **~0ms**.
 >
-> **Retrieval-quality harness** (on `main` in both repos): [`mcp/benchmarks/benchmark_retrieval.md`](https://github.com/drQedwards/pmll/blob/main/mcp/benchmarks/benchmark_retrieval.md) + [`run_retrieval_stub.py`](https://github.com/drQedwards/pmll/blob/main/mcp/benchmarks/run_retrieval_stub.py) (same under [PPM/mcp/benchmarks/](https://github.com/drQedwards/PPM/tree/main/mcp/benchmarks)). It measures labeled retrieval hit rate (P@k / R@k / MRR) — **not** agent task accuracy. Toy stub only until the labeled pack grows; do not cite 99% / 99.99% (or any product accuracy %) from this harness. Traversal ranking fix is **MERGED** on `main` ([pmll#14](https://github.com/drQedwards/pmll/pull/14) → `bbd2eb8`, [PPM#76](https://github.com/drQedwards/PPM/pull/76) → `b60fd1e`); depth0/1 metrics diverge.
+> **Optional complementary:** [pmll-memory-mcp](https://www.npmjs.com/package/pmll-memory-mcp) for full Q-promise / Python SQLite P0 — [PPM](https://github.com/drQedwards/PPM) / [pmll](https://github.com/drQedwards/pmll). Retrieval harness measures labeled **P@k / R@k / MRR** only — **not** agent task accuracy; no 99% claims.
 
 ## Setup
 
