@@ -26,20 +26,22 @@ The MCP server is built with TypeScript and communicates over stdio using the Mo
 - `static-analysis.ts` - Native linter runner (tsc, eslint, py_compile, cargo check, go vet).
 - `propose-commit.ts` - Code gatekeeper validating headers, FEATURE tag, no inline comments, nesting, file length.
 - `feature-hub.ts` - Obsidian-style feature hub navigator with bundled skeleton views.
-- `memory-tools.ts` - Memory graph MCP wrappers (upsert, relate, search, prune, interlink, traverse). The long-term memory graph architecture is also adapted by the complementary [pmll-memory-mcp](https://www.npmjs.com/package/pmll-memory-mcp) server (`npx pmll-memory-mcp`), which adds short-term KV memory and a solution engine — see [drQedwards/PPM](https://github.com/drQedwards/PPM).
+- `memory-tools.ts` - Memory graph + short-term KV / solution-engine MCP wrappers (`init`/`peek`/`set`/`resolve`/`flush`, `resolve_context`, `promote_to_long_term`, `memory_status`).
 
-The memory graph is a **Retrieval-Augmented Generation (RAG)** system. Agents MUST use `search_memory_graph` at the start of every task to retrieve prior context, and persist learnings with `upsert_memory_node` and `create_relation` after completing work. This prevents redundant exploration and builds cumulative knowledge across sessions.
+The memory graph is a **Retrieval-Augmented Generation (RAG)** system. Prefer `resolve_context` (KV then graph) and `peek` before expensive calls; persist learnings with `upsert_memory_node` / `promote_to_long_term`. Token burn reference (PPM three-way only): baseline ~302ms / peek-only ~26ms / combined ~36ms avg test exec; peek hits ~0ms — [three-way-speed-comparison.md](https://github.com/drQedwards/PPM/blob/main/mcp/benchmarks/three-way-speed-comparison.md). Optional complementary [pmll-memory-mcp](https://www.npmjs.com/package/pmll-memory-mcp) for Q-promise / Python SQLite P0; retrieval harness is labeled P@k/R@k/MRR only (not agent accuracy).
 
 **Core Layer** (continued):
 
 - `hub.ts` - Wikilink parser for `[[path]]` links, cross-link tags, hub discovery, orphan detection.
-- `memory-graph.ts` - In-memory property graph with JSON persistence, decay scoring, and auto-similarity edges.
+- `memory-graph.ts` - In-memory property graph with JSON persistence, decay scoring, auto-similarity edges, and `mergeRankHits` for dual-layer resolve ranking.
+- `short-term-kv.ts` - Session silo Map with `silo_size` LRU eviction; init/peek/set/flush + simple pending map.
+- `solution-engine.ts` - `resolve_context` (KV then graph), `promote_to_long_term`, `memory_status`.
 
 **Git Layer** (`src/git/`):
 
 - `shadow.ts` - Shadow restore point system for undo without touching git history.
 
-**Entry Point**: `src/index.ts` registers 17 MCP tools and starts the stdio transport. Accepts an optional CLI argument for the target project root directory (defaults to `process.cwd()`).
+**Entry Point**: `src/index.ts` registers the structural + memory MCP tools (including native short-term KV / solution engine) and starts the stdio transport. Accepts an optional CLI argument for the target project root directory (defaults to `process.cwd()`).
 
 ## Environment Variables
 

@@ -4,16 +4,22 @@
 
 Context+ gives you structural awareness of the entire codebase without reading every file. These tools replace your default search and read operations — use them as your primary interface to the codebase.
 
-## PMLL Short-Term KV Memory (5 Tools)
+## Short-Term KV Memory (native Context+)
 
-Before every expensive MCP tool invocation, agents MUST use the PMLL short-term KV memory tools to check the cache. This eliminates redundant calls and accelerates task execution. These tools are provided by the [`pmll-memory-mcp`](https://www.npmjs.com/package/pmll-memory-mcp) server (see [mcp/README.md](./README.md)).
+Before every expensive MCP tool invocation, agents MUST `peek` the short-term KV silo. This cuts redundant expensive calls. Native core files: `src/core/short-term-kv.ts`, `src/core/solution-engine.ts`, `src/core/memory-graph.ts` (`mergeRankHits` for dual-layer `resolve_context`), wrappers in `src/tools/memory-tools.ts`, registered in `src/index.ts`.
+
+**Token burn (existing PPM numbers only):** [three-way-speed-comparison.md](https://github.com/drQedwards/PPM/blob/main/mcp/benchmarks/three-way-speed-comparison.md) — TypeScript avg test execution: baseline **~302ms**, Context+-only **~63ms**, PMLL/peek-only **~26ms**, combined **~36ms**; peek cache hits **~0ms**. Prefer `peek` / `resolve_context` so graph work is paid once.
+
+**Retrieval (not agent accuracy):** labeled P@k / R@k / MRR harness on pmll/PPM ([benchmark_retrieval.md](https://github.com/drQedwards/pmll/blob/main/mcp/benchmarks/benchmark_retrieval.md) + [run_retrieval_stub.py](https://github.com/drQedwards/pmll/blob/main/mcp/benchmarks/run_retrieval_stub.py)) — toy stub; **not** agent task success; do not cite 99%/99.99%.
+
+**Optional complementary:** [pmll-memory-mcp](https://www.npmjs.com/package/pmll-memory-mcp) (`npx pmll-memory-mcp`) for full Q-promise / Python SQLite P0 durability — see [drQedwards/PPM](https://github.com/drQedwards/PPM) / [drQedwards/pmll](https://github.com/drQedwards/pmll).
 
 | Tool      | Input                                              | Description                                                |
 |-----------|----------------------------------------------------|------------------------------------------------------------|
-| `init`    | `session_id: str`, `silo_size: int = 256`          | Initialize a PMLL silo and Q-promise chain for the session |
-| `peek`    | `session_id: str`, `key: str`                      | Non-destructive cache lookup + Q-promise check (call before every expensive tool) |
-| `set`     | `session_id: str`, `key: str`, `value: str`        | Store a key-value pair in the silo after a cache miss      |
-| `resolve` | `session_id: str`, `promise_id: str`               | Check or resolve a Q-promise continuation                  |
+| `init`    | `session_id: str`, `silo_size: int = 256`          | Initialize / reset the session KV silo                     |
+| `peek`    | `session_id: str`, `key: str`                      | Non-destructive cache lookup + pending check (before every expensive tool) |
+| `set`     | `session_id: str`, `key: str`, `value: str`        | Store a key-value pair after a cache miss                  |
+| `resolve` | `session_id: str`, `promise_id: str`               | Check or resolve a pending continuation                    |
 | `flush`   | `session_id: str`                                  | Clear all silo slots at task completion                    |
 
 ### The `peek()` Pattern
@@ -21,9 +27,9 @@ Before every expensive MCP tool invocation, agents MUST use the PMLL short-term 
 Call `peek` before every expensive tool invocation:
 
 1. **`init`** once at task start to set up the session silo
-2. **`peek`** before each expensive call — if hit, use the cached value; if pending, wait on the Q-promise
+2. **`peek`** before each expensive call — if hit, use the cached value; if pending, wait with `resolve`
 3. **`set`** after a cache miss to populate the silo for future agents/subtasks
-4. **`resolve`** to check or fulfill Q-promise continuations
+4. **`resolve`** to check or fulfill pending continuations
 5. **`flush`** at task end to clear all session slots
 
 This pattern ensures that Context+ tool results, Playwright page contents, and other expensive outputs are cached and reused across subtasks rather than re-fetched.
@@ -63,17 +69,11 @@ You MUST use Context+ tools instead of native equivalents. Only fall back to nat
 
 | Tool      | When to Use                                                                  |
 |-----------|------------------------------------------------------------------------------|
-| `init`    | Once at task start. Set up the PMLL silo and Q-promise chain for the session.|
-| `peek`    | Before every expensive MCP tool call. Non-destructive cache + Q-promise check.|
+| `init`    | Once at task start. Reset the session short-term KV silo.                    |
+| `peek`    | Before every expensive MCP tool call. Non-destructive cache + pending check. |
 | `set`     | After a cache miss. Store the result so future agents/subtasks skip the call. |
-| `resolve` | When a Q-promise is pending. Check or fulfill the continuation.              |
+| `resolve` | When a key is pending. Check or fulfill the continuation.                    |
 | `flush`   | At task end. Clear all silo slots for the session.                           |
-
-### GraphQL
-
-| Tool      | When to Use                                                                  |
-|-----------|------------------------------------------------------------------------------|
-| `graphql` | Execute GraphQL queries/mutations against the memory store with optional PMLL cache integration. |
 
 ### Context+ Structural Tools
 
@@ -120,4 +120,4 @@ You MUST use Context+ tools instead of native equivalents. Only fall back to nat
 6. Forgetting to call `init` at task start or `flush` at task end, causing silent cache misses or stale data across sessions
 7. Storing frequently-accessed payloads only in short-term KV instead of promoting them to long-term memory with `promote_to_long_term`
 8. Calling `search_memory_graph` or `retrieve_with_traversal` directly instead of using `resolve_context`, which checks both memory layers in one call
-9. Ignoring Q-promise `pending` status from `peek` and re-issuing the same expensive call instead of waiting with `resolve`
+9. Ignoring `pending` status from `peek` and re-issuing the same expensive call instead of waiting with `resolve`
