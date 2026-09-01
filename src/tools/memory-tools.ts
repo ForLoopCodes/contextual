@@ -2,7 +2,9 @@
 // FEATURE: Memory Tools — upsert, relate, search, prune, interlink, traverse
 
 import type { NodeType, RelationType, TraversalResult } from "../core/memory-graph.js";
-import { upsertNode, createRelation, searchGraph, pruneStaleLinks, addInterlinkedContext, retrieveWithTraversal, getGraphStats } from "../core/memory-graph.js";
+import { upsertNode, createRelation, searchGraph, pruneStaleLinks, addInterlinkedContext, retrieveWithTraversal, getGraphStats, mergeRankHits } from "../core/memory-graph.js";
+import { getStore, resetStore, dropStore, type PeekContextResult } from "../core/short-term-kv.js";
+import { resolveContext, promoteToLongTerm, getMemoryStatus } from "../core/solution-engine.js";
 
 export interface UpsertMemoryNodeOptions {
   rootDir: string;
@@ -83,15 +85,21 @@ export async function toolCreateRelation(options: CreateRelationOptions): Promis
 
 export async function toolSearchMemoryGraph(options: SearchMemoryGraphOptions): Promise<string> {
   const result = await searchGraph(options.rootDir, options.query, options.maxDepth, options.topK, options.edgeFilter);
-  if (result.direct.length === 0) return `No memory nodes found for: "${options.query}"\nGraph has ${result.totalNodes} nodes, ${result.totalEdges} edges.`;
+  if (result.direct.length === 0 && result.neighbors.length === 0) {
+    return `No memory nodes found for: "${options.query}"\nGraph has ${result.totalNodes} nodes, ${result.totalEdges} edges.`;
+  }
 
-  const sections: string[] = [`Memory Graph Search: "${options.query}"`, `Graph: ${result.totalNodes} nodes, ${result.totalEdges} edges\n`];
-
-  sections.push("Direct Matches:");
-  for (const hit of result.direct) sections.push(formatTraversalResult(hit));
+  const topK = options.topK ?? 5;
+  const ranked = mergeRankHits([...result.direct, ...result.neighbors], topK);
+  const sections: string[] = [
+    `Memory Graph Search: "${options.query}"`,
+    `Graph: ${result.totalNodes} nodes, ${result.totalEdges} edges`,
+    `Ranked (merged direct+neighbor by relevance, top ${topK}):\n`,
+  ];
+  for (const hit of ranked) sections.push(formatTraversalResult(hit));
 
   if (result.neighbors.length > 0) {
-    sections.push("\nLinked Neighbors:");
+    sections.push("\nLinked Neighbors (full):");
     for (const neighbor of result.neighbors) sections.push(formatTraversalResult(neighbor));
   }
 
@@ -140,3 +148,83 @@ export async function toolRetrieveWithTraversal(options: RetrieveWithTraversalOp
 
   return sections.join("\n");
 }
+
+// --- Short-term KV + solution engine wrappers (ported from ppm/mcp) ---
+
+export async function toolInitSilo(options: { sessionId: string; siloSize?: number }): Promise<string> {
+  const store = resetStore(options.sessionId, options.siloSize ?? 256);
+  return JSON.stringify({
+    status: "initialized",
+    session_id: options.sessionId,
+    silo_size: store.siloSize,
+    cleared: true,
+  });
+}
+
+export async function toolPeek(options: { sessionId: string; key: string }): Promise<string> {
+  const store = getStore(options.sessionId);
+  const result: PeekContextResult = store.peekContext(options.key);
+  return JSON.stringify(result);
+}
+
+export async function toolSet(options: { sessionId: string; key: string; value: string }): Promise<string> {
+  const store = getStore(options.sessionId);
+  const index = store.set(options.key, options.value);
+  return JSON.stringify({ status: "stored", index });
+}
+
+export async function toolResolve(options: {
+  sessionId: string;
+  promiseId: string;
+  payload?: string;
+}): Promise<string> {
+  const store = getStore(options.sessionId);
+  const result = store.resolve(options.promiseId, options.payload);
+  return JSON.stringify(result);
+}
+
+export async function toolFlush(options: { sessionId: string }): Promise<string> {
+  const cleared = dropStore(options.sessionId);
+  return JSON.stringify({ status: "flushed", cleared_count: cleared });
+}
+
+export async function toolResolveContext(options: {
+  rootDir: string;
+  sessionId: string;
+  key: string;
+}): Promise<string> {
+  const store = getStore(options.sessionId);
+  const result = await resolveContext(options.rootDir, options.key, store);
+  return JSON.stringify(result);
+}
+
+export async function toolPromoteToLongTerm(options: {
+  rootDir: string;
+  sessionId: string;
+  key: string;
+  value: string;
+  nodeType?: NodeType;
+}): Promise<string> {
+  const store = getStore(options.sessionId);
+  if (!store.has(options.key)) {
+    store.set(options.key, options.value);
+  }
+  const result = await promoteToLongTerm(
+    options.rootDir,
+    options.key,
+    options.value,
+    options.nodeType ?? "concept",
+  );
+  return JSON.stringify(result);
+}
+
+export async function toolMemoryStatus(options: {
+  rootDir: string;
+  sessionId: string;
+}): Promise<string> {
+  const store = getStore(options.sessionId);
+  const result = await getMemoryStatus(options.rootDir, store);
+  return JSON.stringify(result, null, 2);
+}
+
+export { mergeRankHits };

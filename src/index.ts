@@ -24,7 +24,12 @@ import { proposeCommit } from "./tools/propose-commit.js";
 import { listRestorePoints, restorePoint } from "./git/shadow.js";
 import { semanticNavigate } from "./tools/semantic-navigate.js";
 import { getFeatureHub } from "./tools/feature-hub.js";
-import { toolUpsertMemoryNode, toolCreateRelation, toolSearchMemoryGraph, toolPruneStaleLinks, toolAddInterlinkedContext, toolRetrieveWithTraversal } from "./tools/memory-tools.js";
+import {
+  toolUpsertMemoryNode, toolCreateRelation, toolSearchMemoryGraph, toolPruneStaleLinks,
+  toolAddInterlinkedContext, toolRetrieveWithTraversal,
+  toolInitSilo, toolPeek, toolSet, toolResolve, toolFlush,
+  toolResolveContext, toolPromoteToLongTerm, toolMemoryStatus,
+} from "./tools/memory-tools.js";
 
 type AgentTarget = "claude" | "cursor" | "vscode" | "windsurf" | "opencode";
 
@@ -537,6 +542,112 @@ server.tool(
       type: "text" as const,
       text: await toolRetrieveWithTraversal({ rootDir: ROOT_DIR, startNodeId: start_node_id, maxDepth: max_depth, edgeFilter: edge_filter }),
     }],
+  })),
+);
+
+
+server.tool(
+  "init",
+  "Initialize the short-term KV memory silo for an agent session. Call once at task start. " +
+  "Resets any existing silo for the session_id. Use peek/set/flush with the same session_id.",
+  {
+    session_id: z.string().describe("Unique identifier for this agent task/session."),
+    silo_size: z.number().optional().describe("Max KV slots before LRU eviction. Default: 256."),
+  },
+  withRequestActivity(async ({ session_id, silo_size }) => ({
+    content: [{ type: "text" as const, text: await toolInitSilo({ sessionId: session_id, siloSize: silo_size }) }],
+  })),
+);
+
+server.tool(
+  "peek",
+  "Non-destructive short-term KV lookup. Call BEFORE every expensive MCP tool to avoid redundant work. " +
+  "Returns cache hit, pending (in-flight), or miss.",
+  {
+    session_id: z.string().describe("Session id from init."),
+    key: z.string().describe("Context key to look up."),
+  },
+  withRequestActivity(async ({ session_id, key }) => ({
+    content: [{ type: "text" as const, text: await toolPeek({ sessionId: session_id, key }) }],
+  })),
+);
+
+server.tool(
+  "set",
+  "Store a key-value pair in the short-term KV silo after a cache miss / expensive tool call.",
+  {
+    session_id: z.string().describe("Session id from init."),
+    key: z.string().describe("Context key."),
+    value: z.string().describe("Value to cache."),
+  },
+  withRequestActivity(async ({ session_id, key, value }) => ({
+    content: [{ type: "text" as const, text: await toolSet({ sessionId: session_id, key, value }) }],
+  })),
+);
+
+server.tool(
+  "resolve",
+  "Check or fulfill a pending short-term continuation (simple pending map). " +
+  "Pass payload to store the resolved value.",
+  {
+    session_id: z.string().describe("Session id from init."),
+    promise_id: z.string().describe("Pending promise id (often the same as the key)."),
+    payload: z.string().optional().describe("Optional payload to resolve and store."),
+  },
+  withRequestActivity(async ({ session_id, promise_id, payload }) => ({
+    content: [{ type: "text" as const, text: await toolResolve({ sessionId: session_id, promiseId: promise_id, payload }) }],
+  })),
+);
+
+server.tool(
+  "flush",
+  "Clear all short-term KV slots for a session. Call at task end.",
+  {
+    session_id: z.string().describe("Session id from init."),
+  },
+  withRequestActivity(async ({ session_id }) => ({
+    content: [{ type: "text" as const, text: await toolFlush({ sessionId: session_id }) }],
+  })),
+);
+
+server.tool(
+  "resolve_context",
+  "Unified context lookup: short-term KV first, then long-term memory graph (merge-ranked). " +
+  "Prefer this over calling search_memory_graph alone when you may already have a cached value.",
+  {
+    session_id: z.string().describe("Session id from init."),
+    key: z.string().describe("Context key / search query."),
+  },
+  withRequestActivity(async ({ session_id, key }) => ({
+    content: [{ type: "text" as const, text: await toolResolveContext({ rootDir: ROOT_DIR, sessionId: session_id, key }) }],
+  })),
+);
+
+server.tool(
+  "promote_to_long_term",
+  "Promote a short-term KV entry into the persistent long-term memory graph so it survives flush.",
+  {
+    session_id: z.string().describe("Session id from init."),
+    key: z.string().describe("Key/label for the memory node."),
+    value: z.string().describe("Content to store in long-term memory."),
+    node_type: z.enum(["concept", "file", "symbol", "note"]).optional().describe("Node type. Default: concept."),
+  },
+  withRequestActivity(async ({ session_id, key, value, node_type }) => ({
+    content: [{
+      type: "text" as const,
+      text: await toolPromoteToLongTerm({ rootDir: ROOT_DIR, sessionId: session_id, key, value, nodeType: node_type }),
+    }],
+  })),
+);
+
+server.tool(
+  "memory_status",
+  "Unified view of short-term KV silo and long-term memory graph for a session.",
+  {
+    session_id: z.string().describe("Session id from init."),
+  },
+  withRequestActivity(async ({ session_id }) => ({
+    content: [{ type: "text" as const, text: await toolMemoryStatus({ rootDir: ROOT_DIR, sessionId: session_id }) }],
   })),
 );
 

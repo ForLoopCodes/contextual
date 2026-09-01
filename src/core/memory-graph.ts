@@ -180,6 +180,23 @@ export async function createRelation(rootDir: string, sourceId: string, targetId
   return edge;
 }
 
+/** Merge unique hits by id (fallback label), keep highest relevanceScore, sort desc, slice topK.
+ * Used by dual-layer resolve_context / ranked presentation — not a claim that searchGraph was buggy.
+ */
+export function mergeRankHits(hits: TraversalResult[], topK: number): TraversalResult[] {
+  const byKey = new Map<string, TraversalResult>();
+  for (const hit of hits) {
+    const key = hit.node.id || hit.node.label;
+    const existing = byKey.get(key);
+    if (!existing || hit.relevanceScore > existing.relevanceScore) {
+      byKey.set(key, hit);
+    }
+  }
+  return [...byKey.values()]
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, topK);
+}
+
 export async function searchGraph(rootDir: string, query: string, maxDepth: number = 1, topK: number = 5, edgeFilter?: RelationType[]): Promise<GraphSearchResult> {
   const graph = await loadGraph(rootDir);
   const nodes = Object.values(graph.nodes);
